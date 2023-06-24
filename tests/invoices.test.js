@@ -105,7 +105,7 @@ describe("POST /invoices",function(){
 
 describe("PUT /invoices/:id",function(){
     test("Alters company entirely", async function(){
-        let resp = await request(app).put(`/invoices/${testInvoice3.id}`).send({amt:500});
+        let resp = await request(app).put(`/invoices/${testInvoice3.id}`).send({paid:false,amt:500});
         expect(resp.statusCode).toBe(200)
         expect(resp.body.invoice.comp_code).toEqual(testCompany2.code);
         expect(resp.body.invoice.amt).toEqual(500);
@@ -116,11 +116,11 @@ describe("PUT /invoices/:id",function(){
     test("Attempting to alter invoice with incomplete info", async function(){
         let resp = await request(app).put(`/invoices/${testInvoice3.id}`).send({});
         expect(resp.statusCode).toBe(404)
-        expect(resp.body).toEqual({error:{message:"Require amt",  status: 404}});
+        expect(resp.body).toEqual({error:{message:"Require amt and paid",  status: 404}});
     })
 
     test("Attempting to alter fake invoice", async function(){
-        let resp = await request(app).put(`/invoices/-1`).send({amt:500});
+        let resp = await request(app).put(`/invoices/-1`).send({paid:true, amt:500});
         expect(resp.statusCode).toBe(404)
         expect(resp.body).toEqual({error:{
             message:"Invoice not found",

@@ -53,12 +53,20 @@ router.post("/", async function (req, res, next) {
 //Update an Invoice
 router.put("/:invoiceId", async function (req, res, next) {
     try {
-        if (req.body.amt === undefined) {
-            let error = new ExpressError("Require amt", 404)
+        let invoice;
+
+        if ((req.body.amt === undefined) || (req.body.paid === undefined))  {
+            let error = new ExpressError("Require amt and paid", 404)
             return next(error)
         }
-        const result = await db.query("UPDATE invoices SET amt=$1 WHERE id=$2 RETURNING *, paid_date::Text, add_date::Text", [req.body.amt, req.params.invoiceId])
-        const invoice = result.rows[0]
+        if (req.body.paid === true) {
+            let result = await db.query("UPDATE invoices SET amt=$1, paid=true, paid_date=CURRENT_DATE WHERE id=$2 RETURNING *, paid_date::Text, add_date::Text", [req.body.amt, req.params.invoiceId])
+            invoice = result.rows[0]
+        }
+        else{
+            let result = await db.query("UPDATE invoices SET amt=$1, paid=false, paid_date=null WHERE id=$2 RETURNING *, paid_date::Text, add_date::Text", [req.body.amt, req.params.invoiceId])
+            invoice = result.rows[0]
+        }
         if (invoice) {
             return res.json({ invoice });
         }
