@@ -2,10 +2,11 @@ process.env.NODE_ENV = "test";
 const request = require("supertest");
 const app = require("../app.js");
 const db = require("../db.js");
+const slugify = require("slugify");
 
 let testCompany1;
 let testCompany2;
-let testCompany3 = {code:"tes",  name:"Tesla Inc", description:"A company owned by Elon Musk..." };
+let testCompany3 = {code: slugify("Tesla Inc", {trim: true, lower: true}), name:"Tesla Inc", description:"A company owned by Elon Musk..." };
 
 beforeEach(async function () {
     {
@@ -71,9 +72,9 @@ describe("POST /companies",function(){
     })
 
     test("Attempting to add company with incomplete info", async function(){
-        const resp = await request(app).post(`/companies`).send({ name:"Tesla Inc", description:"A company owned by Elon Musk..." });
+        const resp = await request(app).post(`/companies`).send({ name:"Tesla Inc" });
         expect(resp.statusCode).toBe(404)
-        expect(resp.body).toEqual({error:{message:"Require code, name, and description",  status: 404}});
+        expect(resp.body).toEqual({error:{message:"Require name, and description",  status: 404}});
     })
 
 });
@@ -83,14 +84,14 @@ describe("PUT /companies/:code",function(){
     test("Alters company entirely", async function(){
         let resp = await request(app).put(`/companies/isle`).send(testCompany3);
         expect(resp.statusCode).toBe(200)
-        expect(resp.body).toEqual({company:{code:"tes",  name:"Tesla Inc", description:"A company owned by Elon Musk..." }});
+        expect(resp.body).toEqual({company:testCompany3});
         resp = await request(app).get(`/companies`);
         expect(resp.statusCode).toBe(200)
         expect(resp.body).toEqual({companies:[testCompany2, testCompany3]});
     })
 
     test("Attempting to alter company with incomplete info", async function(){
-        let resp = await request(app).put(`/companies/isle`).send({ name:"Tesla Inc", description:"A company owned by Elon Musk..." });
+        let resp = await request(app).put(`/companies/isle`).send({ description:"A company owned by Elon Musk..." });
         expect(resp.statusCode).toBe(404)
         expect(resp.body).toEqual({error:{message:"Require code, name, and description",  status: 404}});
         resp = await request(app).get(`/companies`);
@@ -113,7 +114,7 @@ describe("PATCH /companies/:code",function(){
     test("Alters company entirely", async function(){
         let resp = await request(app).patch(`/companies/isle`).send(testCompany3);
         expect(resp.statusCode).toBe(200)
-        expect(resp.body).toEqual({company:{code:"tes",  name:"Tesla Inc", description:"A company owned by Elon Musk..." }});
+        expect(resp.body).toEqual({company:testCompany3});
         resp = await request(app).get(`/companies`);
         expect(resp.statusCode).toBe(200)
         expect(resp.body).toEqual({companies:[testCompany2, testCompany3]});
