@@ -6,7 +6,7 @@ const ExpressError = require("../expressError")
 //Get All Invoices
 router.get("/", async function (req, res, next) {
     try {
-        const result = await db.query("SELECT * FROM invoices")
+        const result = await db.query("SELECT *, paid_date::Text, add_date::Text FROM invoices")
         return res.json({ invoices: result.rows });
     } catch (err) {
         let error = new ExpressError(err.message, err.status || 500)
@@ -17,7 +17,7 @@ router.get("/", async function (req, res, next) {
 //Get specified Invoice
 router.get("/:invoiceId", async function (req, res, next) {
     try {
-        const result = await db.query("SELECT * FROM invoices WHERE id=$1", [req.params.invoiceId])
+        const result = await db.query("SELECT *, paid_date::Text, add_date::Text FROM invoices WHERE id=$1", [req.params.invoiceId])
         const invoice = result.rows[0]
         if (invoice) {
             return res.json({ invoice });
@@ -35,17 +35,17 @@ router.get("/:invoiceId", async function (req, res, next) {
 //Create an Invoice
 router.post("/", async function (req, res, next) {
     try {
-        const result = await db.query("INSERT INTO invoices (comp_code, amt) VALUES ($1, $2) RETURNING *", [req.body.comp_code, req.body.amt])
+        if (req.body.comp_code === undefined || req.body.amt === undefined) {
+            let error = new ExpressError("Require comp_code, and amt", 404)
+            return next(error)
+        }
+        const result = await db.query("INSERT INTO invoices (comp_code, amt) VALUES ($1, $2) RETURNING *, paid_date::Text, add_date::Text", [req.body.comp_code, req.body.amt])
         const invoice = result.rows[0]
         if (invoice) {
             return res.json({ invoice });
         }
-        else {
-            let error = new ExpressError("Invoice not found", 404)
-            return next(error)
-        }
     } catch (err) {
-        let error = new ExpressError("Invalid Company Code", err.status || 500)
+        let error = new ExpressError(err.message, err.status || 500)
         return next(error)
     }
 });
@@ -53,7 +53,11 @@ router.post("/", async function (req, res, next) {
 //Update an Invoice
 router.put("/:invoiceId", async function (req, res, next) {
     try {
-        const result = await db.query("UPDATE invoices SET amt=$1 WHERE id=$2 RETURNING *", [req.body.amt, req.params.invoiceId])
+        if (req.body.amt === undefined) {
+            let error = new ExpressError("Require amt", 404)
+            return next(error)
+        }
+        const result = await db.query("UPDATE invoices SET amt=$1 WHERE id=$2 RETURNING *, paid_date::Text, add_date::Text", [req.body.amt, req.params.invoiceId])
         const invoice = result.rows[0]
         if (invoice) {
             return res.json({ invoice });
@@ -91,7 +95,7 @@ router.get("/companies/:code", async function (req, res, next) {
         const result1 = await db.query("SELECT code, name, description FROM companies WHERE code=$1", [req.params.code])
         const company = result1.rows[0]
         if(company){
-            const result2 = await db.query("SELECT * FROM invoices WHERE comp_code=$1", [req.params.code])
+            const result2 = await db.query("SELECT *, paid_date::Text, add_date::Text FROM invoices WHERE comp_code=$1", [req.params.code])
             const invoices = result2.rows
             return res.json({ company: { ...company , invoices} });
         }

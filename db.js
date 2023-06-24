@@ -18,6 +18,7 @@ let db = new Client({
     database: DB_NAME,
 });
 
+
 db.connect();
 
 module.exports = db;
