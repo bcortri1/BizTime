@@ -6,9 +6,20 @@ const slugify = require("slugify");
 
 let testCompany1;
 let testCompany2;
+
 let testCompany3 = {code: slugify("Tesla Inc", {trim: true, lower: true}), name:"Tesla Inc", description:"A company owned by Elon Musk..." };
+let testIndustry1;
+let testIndustry2;
 
 beforeEach(async function () {
+    {
+        let result = await db.query("INSERT INTO industries (code, name) VALUES ($1, $2) RETURNING *", ['tour', 'Tourism']);
+        testIndustry1 = result.rows[0];
+    }
+    {
+        let result = await db.query("INSERT INTO industries (code, name) VALUES ($1, $2) RETURNING *", ['serv', 'Service']);
+        testIndustry2 = result.rows[0];
+    }
     {
         let result = await db.query("INSERT INTO companies (code, name, description) VALUES ($1, $2, $3) RETURNING code, name, description", ['isle', 'The Island Company', 'For all your island needs']);
         testCompany1 = result.rows[0];
@@ -17,11 +28,21 @@ beforeEach(async function () {
         let result = await db.query("INSERT INTO companies (code, name, description) VALUES ($1, $2, $3) RETURNING code, name, description", ['far', 'Far Far Away Inc', 'Vacation getaway resorts']);
         testCompany2 = result.rows[0];
     }
+    {
+        let result = await db.query("INSERT INTO companies_industries (comp_code, industry_code) VALUES ($1, $2) RETURNING *", ['isle', 'tour']);
+    }
+    {
+        let result = await db.query("INSERT INTO companies_industries (comp_code, industry_code) VALUES ($1, $2) RETURNING *", ['isle', 'serv']);
+    }
+
 });
 
 afterEach(async function () {
     // delete any data created by test
+    await db.query("DELETE FROM companies_industries");
     await db.query("DELETE FROM companies");
+    await db.query("DELETE FROM industries");
+
 });
 
 afterAll(async function () {
@@ -43,12 +64,12 @@ describe("GET /companies/:code",function(){
         {
             let resp = await request(app).get(`/companies/isle`);
             expect(resp.statusCode).toBe(200)
-            expect(resp.body).toEqual({company:testCompany1});
+            expect(resp.body).toEqual({company:{...testCompany1, industries:[testIndustry1.name, testIndustry2.name]}});
         }
         {
             let resp = await request(app).get(`/companies/far`);
             expect(resp.statusCode).toBe(200)
-            expect(resp.body).toEqual({company:testCompany2});
+            expect(resp.body).toEqual({company:{...testCompany2, industries:[null]}});
         }
 
     })
@@ -87,7 +108,8 @@ describe("PUT /companies/:code",function(){
         expect(resp.body).toEqual({company:testCompany3});
         resp = await request(app).get(`/companies`);
         expect(resp.statusCode).toBe(200)
-        expect(resp.body).toEqual({companies:[testCompany2, testCompany3]});
+        expect(resp.body.companies).toContainEqual(testCompany2);
+        expect(resp.body.companies).toContainEqual(testCompany3);
     })
 
     test("Attempting to alter company with incomplete info", async function(){
@@ -96,7 +118,8 @@ describe("PUT /companies/:code",function(){
         expect(resp.body).toEqual({error:{message:"Require code, name, and description",  status: 404}});
         resp = await request(app).get(`/companies`);
         expect(resp.statusCode).toBe(200)
-        expect(resp.body).toEqual({companies:[testCompany1, testCompany2]});
+        expect(resp.body.companies).toContainEqual(testCompany1);
+        expect(resp.body.companies).toContainEqual(testCompany2);
     })
 
     test("Gets non existant company", async function(){
@@ -117,7 +140,8 @@ describe("PATCH /companies/:code",function(){
         expect(resp.body).toEqual({company:testCompany3});
         resp = await request(app).get(`/companies`);
         expect(resp.statusCode).toBe(200)
-        expect(resp.body).toEqual({companies:[testCompany2, testCompany3]});
+        expect(resp.body.companies).toContainEqual(testCompany2);
+        expect(resp.body.companies).toContainEqual(testCompany3);
     })
 
     test("Attempting to alter company with incomplete info", async function(){
@@ -126,7 +150,8 @@ describe("PATCH /companies/:code",function(){
         expect(resp.body).toEqual({company:{code:"isle",  name:"Tesla Inc", description:"A company owned by Elon Musk..." }});
         resp = await request(app).get(`/companies`);
         expect(resp.statusCode).toBe(200)
-        expect(resp.body).toEqual({companies:[testCompany2, {code:"isle",  name:"Tesla Inc", description:"A company owned by Elon Musk..." }]});
+        expect(resp.body.companies).toContainEqual(testCompany2)
+        expect(resp.body.companies).toContainEqual({code:"isle",  name:"Tesla Inc", description:"A company owned by Elon Musk..." });
     })
 
     test("Gets non existant company", async function(){

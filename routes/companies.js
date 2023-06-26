@@ -15,18 +15,23 @@ router.get("/", async function (req, res, next) {
     }
 });
 
-//Get Specified Company
+//Get Specified Company and Industries
 router.get("/:code", async function (req, res, next) {
     try {
-        const result = await db.query("SELECT code, name, description FROM companies WHERE code=$1", [req.params.code])
-        const company = result.rows[0]
-        if (company) {
-            return res.json({ company });
-        }
-        else {
+        const result = await db.query(`SELECT c.code, c.name, c.description, i.name AS indus FROM companies as c 
+        LEFT JOIN companies_industries AS ci ON c.code = ci.comp_code
+        LEFT JOIN industries AS i ON i.code = ci.industry_code 
+        WHERE c.code=$1`, [req.params.code])
+        if (!result.rows[0]){
             let error = new ExpressError("Company not found", 404)
             return next(error)
         }
+        else{
+            const {code, name, description} = result.rows[0]
+            const industries = result.rows.map(r => r.indus || null);
+            return res.json({company: {code, name, description, industries} });
+        }
+
     } catch (err) {
         let error = new ExpressError(err.message, err.status || 500)
         return next(error)
